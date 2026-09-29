@@ -15,6 +15,10 @@ class HabitArchivedError(Exception):
     pass
 
 
+class DuplicateLogError(Exception):
+    pass
+
+
 class Habit:
     def __init__(self, name: str, description: str, frequency: HabitFrequency) -> None:
         self.check_empty_name(name)
@@ -74,6 +78,9 @@ class Habit:
     def created_at(self) -> date:
         return self._created_at
 
+    def __repr__(self) -> str:
+        return f"Habit(name={self.name!r}, description={self.description!r}, status={self.status!r})"
+
 
 class HabitLog:
     def __init__(self, habit: Habit, completed_date: date):
@@ -86,10 +93,30 @@ class HabitLog:
         self.completed_date = completed_date
         self.habit = habit
 
+    def __repr__(self):
+        return f"HabitLog(name={self.habit.name!r}, completed_date={self.completed_date!r})"
+
+
+class HabitLogRepository:
+    def __init__(self) -> None:
+        self._logs: list = []
+
+    def add(self, log: HabitLog) -> None:
+        for existing_log in self._logs:
+            if existing_log.habit.name == log.habit.name and existing_log.completed_date == log.completed_date:
+                raise DuplicateLogError("Duplicated habit")
+        self._logs.append(log)
+
+    def get_logs_for_habit(self, habit: Habit) -> list:
+        return [wanted_log for wanted_log in self._logs if wanted_log.habit.name == habit.name]
+
+
 if __name__ == "__main__":
-    habit = Habit("Brainstorm", "Study 2 hours everyday", HabitFrequency.EVERYDAY)
+    habit1 = Habit("Brainstorm", "Study 2 hours everyday", HabitFrequency.EVERYDAY)
 
-# ===== TESTS =====
+    repo = HabitLogRepository()
+    repo.add(HabitLog(habit1, date(2026, 9, 27)))
+    repo.add(HabitLog(habit1, date(2026, 9, 28)))
+    repo.add(HabitLog(habit1, date.today()))
 
-    habit.archive()
-    print(HabitLog(habit, date.today()))
+    print(repo.get_logs_for_habit(habit1))
