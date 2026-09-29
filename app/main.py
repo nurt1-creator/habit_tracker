@@ -11,6 +11,10 @@ class HabitFrequency(Enum):
     EVERYWEEK = "everyweek"
 
 
+class HabitArchivedError(Exception):
+    pass
+
+
 class Habit:
     def __init__(self, name: str, description: str, frequency: HabitFrequency) -> None:
         self.check_empty_name(name)
@@ -70,12 +74,22 @@ class Habit:
     def created_at(self) -> date:
         return self._created_at
 
-    def __repr__(self) -> str:
-        return f"Habit(name={self.name!r}, description={self.description!r}, status={self.status!r})"
 
-    
-habit = Habit("jambo", "Читать 10 страниц в день", HabitFrequency.EVERYWEEK)
-# habit.frequency = "какая-то строка"
-habit.frequency = HabitFrequency.EVERYDAY
-print(habit.frequency)
-print(habit.created_at)
+class HabitLog:
+    def __init__(self, habit: Habit, completed_date: date):
+        if completed_date > date.today():
+            raise ValueError("Completed date can not be in future")
+
+        if habit.status == HabitStatus.ARCHIVED:
+            raise HabitArchivedError("Habit archived")
+
+        self.completed_date = completed_date
+        self.habit = habit
+
+if __name__ == "__main__":
+    habit = Habit("Brainstorm", "Study 2 hours everyday", HabitFrequency.EVERYDAY)
+
+# ===== TESTS =====
+
+    habit.archive()
+    print(HabitLog(habit, date.today()))
