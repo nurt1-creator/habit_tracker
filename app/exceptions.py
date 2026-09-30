@@ -4,3 +4,7 @@ class HabitArchivedError(Exception):
 
 class DuplicateLogError(Exception):
     pass
+
+
+class DuplicateHabitError(Exception):
+    pass

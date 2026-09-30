@@ -1,6 +1,6 @@
 from datetime import date
 from app.enums import HabitStatus, HabitFrequency
-from app.exceptions import HabitArchivedError, DuplicateLogError
+from app.exceptions import HabitArchivedError
 
 class Habit:
     def __init__(self, name: str, description: str, frequency: HabitFrequency) -> None:
@@ -30,9 +30,9 @@ class Habit:
     def description(self, val: str) -> None:
         self._description = val.strip()
 
-    def check_correct_freq_enum(self, val: HabitFrequency) -> None:
-        if not isinstance(val, HabitFrequency):
-            raise TypeError("Incorrect Enum")
+    def check_empty_name(self, name: str) -> None:
+            if not name.strip():
+                raise ValueError("Habit is empty")
 
     @property
     def frequency(self) -> HabitFrequency:
@@ -43,20 +43,20 @@ class Habit:
         self.check_correct_freq_enum(val)
         self._frequency = val
 
-    def check_empty_name(self, name: str) -> None:
-        if not name.strip():
-            raise ValueError("Habit is empty")
-
-    def archive(self) -> None:
-        self._status = HabitStatus.ARCHIVED
-
-    def activate(self) -> None:
-        self._status = HabitStatus.ACTIVE
-
+    def check_correct_freq_enum(self, val: HabitFrequency) -> None:
+            if not isinstance(val, HabitFrequency):
+                raise TypeError("Incorrect Enum")
+    
     @property
     def status(self) -> HabitStatus:
         return self._status
+    
+    def archive(self) -> None:
+            self._status = HabitStatus.ARCHIVED
 
+    def activate(self) -> None:
+        self._status = HabitStatus.ACTIVE
+    
     @property
     def created_at(self) -> date:
         return self._created_at

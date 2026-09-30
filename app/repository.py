@@ -1,3 +1,4 @@
+from datetime import timedelta, date
 from app.models import Habit, HabitLog
 from app.exceptions import DuplicateLogError
 
@@ -13,3 +14,29 @@ class HabitLogRepository:
 
     def get_logs_for_habit(self, habit: Habit) -> list:
         return [wanted_log for wanted_log in self._logs if wanted_log.habit.name == habit.name]
+
+    def get_current_streak(self, habit: Habit) -> int:
+        logs = self.get_logs_for_habit(habit)
+        current_date = date.today()
+        streak = 0
+        dates_set = {log.completed_date for log in logs}
+        while current_date in dates_set:
+            streak += 1
+            current_date = current_date - timedelta(days=1)
+        return streak
+
+    def get_longest_streak(self, habit: Habit) -> int:
+        logs = self.get_logs_for_habit(habit)
+        longest = 1
+        current = 1
+        dates_set = sorted([log.completed_date for log in logs])
+        if not dates_set:
+            return 0
+        for index in range(len(dates_set) - 1):
+            if (dates_set[index + 1] - dates_set[index]).days == 1:
+                current += 1
+            else:
+                longest = max(longest, current)
+                current = 1
+        longest = max(longest, current)
+        return longest
