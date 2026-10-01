@@ -62,7 +62,7 @@ class Habit:
         return self._created_at
 
     def __repr__(self) -> str:
-        return f"Habit(name={self.name!r}, description={self.description!r}, status={self.status!r})"
+        return f"Habit(name={self.name!r}, description={self.description!r}, status={self.status!r}, frequency={self.frequency!r})"
 
 
 class HabitLog:
