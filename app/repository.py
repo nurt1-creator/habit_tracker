@@ -1,6 +1,7 @@
 from datetime import timedelta, date
 from app.models import Habit, HabitLog
 from app.exceptions import DuplicateLogError
+from app.enums import HabitFrequency
 
 class HabitLogRepository:
     def __init__(self) -> None:
@@ -40,3 +41,12 @@ class HabitLogRepository:
                 current = 1
         longest = max(longest, current)
         return longest
+
+    def get_completion_rate(self, habit: Habit, days: int = 30) -> float:
+        logs = self.get_logs_for_habit(habit)
+        dates_set = set(log.completed_date for log in logs)
+        date_period = set(date.today() - timedelta(days=day_offset) for day_offset in range(days))
+        completed_habits = len(dates_set & date_period)
+        waited_days = days if habit.frequency == HabitFrequency.EVERYDAY else days / 7
+        return (completed_habits / waited_days) * 100
+
