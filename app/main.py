@@ -1,96 +1,145 @@
 from datetime import date, timedelta
+
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.prompt import Prompt
+
 from app.models import Habit, HabitLog
 from app.repository import HabitLogRepository
 from app.enums import HabitFrequency, HabitStatus
 from app.user import User
 from app.exceptions import DuplicateHabitError, DuplicateLogError, HabitArchivedError
 
+console = Console()
+
+MENU_TEXT = (
+    "[bold]1.[/bold] Add habit\n"
+    "[bold]2.[/bold] Mark habit\n"
+    "[bold]3.[/bold] Show statistics\n"
+    "[bold]4.[/bold] Change habit status\n"
+    "[bold]5.[/bold] Exit"
+)
+
+
+def show_menu() -> None:
+    console.print(Panel(MENU_TEXT, title="[bold cyan]Habit Tracker[/bold cyan]", border_style="cyan"))
+
+
+def success(message: str) -> None:
+    console.print(f"[bold green]✓[/bold green] {message}")
+
+
+def error(message: str) -> None:
+    console.print(f"[bold red]✗ Error:[/bold red] {message}")
+
+
+def warning(message: str) -> None:
+    console.print(f"[bold yellow]![/bold yellow] {message}")
+
+
+def find_habit(user: User) -> Habit | None:
+    habit_name = Prompt.ask("Habit name")
+    habit = user.get_habit_by_name(habit_name)
+    if habit is None:
+        warning("Habit not found!")
+        return None
+    return habit
+
+
 if __name__ == "__main__":
-    user = User(input("What is your name?: "))
+    console.print(Panel.fit("[bold magenta]Welcome to Habit Tracker[/bold magenta]"))
+    username = Prompt.ask("What is your name?")
+    user = User(username)
     repo = HabitLogRepository()
+
     while True:
-        print("1. Add habit\n"
-                    "2. Mark habit\n"
-                    "3. Show statistics\n"
-                    "4. Change habit status\n"
-                    "5. Exit")
+        show_menu()
         try:
-            choice = int(input())
+            choice = int(Prompt.ask("Choose an option"))
             match choice:
                 case 1:
-                    habit_name = input("Habit name: ")
-                    habit_description = input("Habit description(can be empty): ")
+                    habit_name = Prompt.ask("Habit name")
+                    habit_description = Prompt.ask("Habit description (can be empty)", default="")
                     try:
-                        habit_frequency = int(input("1.Everyday\n2.Everyweek\nHabit frequency: "))
+                        habit_frequency = int(
+                            Prompt.ask("1. Everyday\n2. Everyweek\nHabit frequency")
+                        )
                         match habit_frequency:
                             case 1:
                                 habit_frequency = HabitFrequency.EVERYDAY
                             case 2:
                                 habit_frequency = HabitFrequency.EVERYWEEK
                             case _:
-                                print("Unknown action")
+                                warning("Unknown action")
                                 continue
                     except ValueError:
-                        print("Only numbers allowed!")
+                        error("Only numbers allowed!")
                         continue
+
                     try:
                         created_habit = Habit(habit_name, habit_description, habit_frequency)
                         user.add_habit(created_habit)
-                        print("Habit added!")
+                        success(f"Habit '{created_habit.name}' added!")
                     except (ValueError, DuplicateHabitError) as e:
-                        print(f"Error: {e}")
+                        error(str(e))
+
                 case 2:
-                    habit_name = input("Habit name: ")
-                    wanted_habit = user.get_habit_by_name(habit_name)
+                    wanted_habit = find_habit(user)
                     if wanted_habit is None:
-                        print("Habit not found!")
                         continue
                     try:
                         log = HabitLog(wanted_habit, date.today())
                         repo.add(log)
-                        print("Habit marked as completed!")
+                        success(f"'{wanted_habit.name}' marked as completed!")
                     except (DuplicateLogError, HabitArchivedError) as e:
-                        print(f"Error: {e}")
+                        error(str(e))
+
                 case 3:
-                    habit_name = input("Habit name: ")
-                    wanted_habit = user.get_habit_by_name(habit_name)
+                    wanted_habit = find_habit(user)
                     if wanted_habit is None:
-                        print("Habit not found!")
                         continue
-                    print(f"======STATISTICS======\n"
-                    f"Current streak: {repo.get_current_streak(wanted_habit)}\n"
-                    f"Longest streak: {repo.get_longest_streak(wanted_habit)}\n"
-                    f"Completion rate: {round(repo.get_completion_rate(wanted_habit, days=30), 2)}%"
+
+                    table = Table(title=f"Statistics for '{wanted_habit.name}'", border_style="cyan")
+                    table.add_column("Metric", style="bold")
+                    table.add_column("Value", justify="right")
+                    table.add_row("Status", wanted_habit.status.value)
+                    table.add_row("Current streak", f"{repo.get_current_streak(wanted_habit)} days")
+                    table.add_row("Longest streak", f"{repo.get_longest_streak(wanted_habit)} days")
+                    table.add_row(
+                        "Completion rate (30 days)",
+                        f"{round(repo.get_completion_rate(wanted_habit, days=30), 2)}%",
                     )
+                    console.print(table)
+
                 case 4:
-                    habit_name = input("Habit name: ")
-                    wanted_habit = user.get_habit_by_name(habit_name)
+                    wanted_habit = find_habit(user)
                     if wanted_habit is None:
-                        print("Habit not found!")
                         continue
+
                     if wanted_habit.status == HabitStatus.ARCHIVED:
-                        print("Habit status is 'Archived'")
-                        confirm = input("Do you wanna activate habit?(type Yes to confirm): ")
-                        if confirm.lower() == "yes":
+                        warning("Habit status is 'Archived'")
+                        confirm = Prompt.ask("Activate this habit?", choices=["yes", "no"], default="no")
+                        if confirm == "yes":
                             wanted_habit.activate()
-                            print("Habit activated!")
-                            continue
+                            success("Habit activated!")
                         else:
-                            print("Abandoned!")
-                            continue
-                    if wanted_habit.status == HabitStatus.ACTIVE:
-                        print("Habit status is 'Active'")
-                        confirm = input("Do you wanna archive habit?(type Yes to confirm): ")
-                        if confirm.lower() == "yes":
+                            warning("Abandoned!")
+                    else:
+                        warning("Habit status is 'Active'")
+                        confirm = Prompt.ask("Archive this habit?", choices=["yes", "no"], default="no")
+                        if confirm == "yes":
                             wanted_habit.archive()
-                            print("Habit archived!")
-                            continue
+                            success("Habit archived!")
                         else:
-                            print("Abandoned!")
-                            continue
+                            warning("Abandoned!")
+
                 case 5:
+                    console.print("[bold magenta]Goodbye![/bold magenta]")
                     break
+
                 case _:
-                    print("Unknown action")
+                    warning("Unknown action")
+
         except ValueError:
-            print("Only numbers allowed!")
+            error("Only numbers allowed!")
