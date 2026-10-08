@@ -68,8 +68,12 @@ if __name__ == "__main__":
                         match habit_frequency:
                             case 1:
                                 habit_frequency = HabitFrequency.EVERYDAY
+                                habit_weekday = None
                             case 2:
                                 habit_frequency = HabitFrequency.EVERYWEEK
+                                habit_weekday = int(
+                                    Prompt.ask("1. Monday\n2. Tuesday\n3. Wednesday\n4. Thursday\n5. Friday\n6. Saturday\n7. Sunday\nWeek day")
+                                ) - 1
                             case _:
                                 warning("Unknown action")
                                 continue
@@ -78,10 +82,10 @@ if __name__ == "__main__":
                         continue
 
                     try:
-                        created_habit = Habit(habit_name, habit_description, habit_frequency)
+                        created_habit = Habit(habit_name, habit_description, habit_frequency, habit_weekday)
                         user.add_habit(created_habit)
                         success(f"Habit '{created_habit.name}' added!")
-                    except (ValueError, DuplicateHabitError) as e:
+                    except (ValueError, DuplicateHabitError, IndexError) as e:
                         error(str(e))
 
                 case 2:
@@ -104,6 +108,9 @@ if __name__ == "__main__":
                     table.add_column("Metric", style="bold")
                     table.add_column("Value", justify="right")
                     table.add_row("Status", wanted_habit.status.value)
+                    if wanted_habit.frequency == HabitFrequency.EVERYWEEK:
+                        WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                        table.add_row("Week Day", f"{WEEKDAYS[wanted_habit.weekday]}")
                     table.add_row("Current streak", f"{repo.get_current_streak(wanted_habit)} days")
                     table.add_row("Longest streak", f"{repo.get_longest_streak(wanted_habit)} days")
                     table.add_row(
