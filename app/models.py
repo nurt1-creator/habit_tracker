@@ -3,14 +3,16 @@ from app.enums import HabitStatus, HabitFrequency
 from app.exceptions import HabitArchivedError
 
 class Habit:
-    def __init__(self, name: str, description: str, frequency: HabitFrequency) -> None:
+    def __init__(self, name: str, description: str, frequency: HabitFrequency, weekday: int | None = None) -> None:
         self.check_empty_name(name)
-    
+        self.check_correct_freq_enum(frequency)
+        self.check_weekday_consistency(frequency, weekday)
+
         self.name = name.strip()
         self.description = description.strip()
         self.frequency = frequency
         self._status: HabitStatus = HabitStatus.ACTIVE
-
+        self._weekday = weekday
         self._created_at = date.today()
 
     @property
@@ -21,7 +23,7 @@ class Habit:
     def name(self, val: str) -> None:
         self.check_empty_name(val)
         self._name = val.strip()
-
+    
     @property
     def description(self) -> str:
         return self._description
@@ -60,6 +62,18 @@ class Habit:
     @property
     def created_at(self) -> date:
         return self._created_at
+
+    @property
+    def weekday(self) -> int | None:
+        return self._weekday
+
+    def check_weekday_consistency(self, frequency: HabitFrequency, weekday: int | None) -> None:
+        if frequency == HabitFrequency.EVERYDAY and weekday is not None:
+            raise ValueError("Enum have not weekday parameter")
+        if frequency == HabitFrequency.EVERYWEEK and weekday is None:
+            raise ValueError("Weekday is unknown")
+        if frequency == HabitFrequency.EVERYWEEK and weekday not in range(7):
+            raise IndexError("Out of range")
 
     def __repr__(self) -> str:
         return f"Habit(name={self.name!r}, description={self.description!r}, status={self.status!r}, frequency={self.frequency!r})"

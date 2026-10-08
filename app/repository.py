@@ -47,6 +47,15 @@ class HabitLogRepository:
         dates_set = set(log.completed_date for log in logs)
         date_period = set(date.today() - timedelta(days=day_offset) for day_offset in range(days))
         completed_habits = len(dates_set & date_period)
-        waited_days = days if habit.frequency == HabitFrequency.EVERYDAY else days / 7
-        return (completed_habits / waited_days) * 100
+        if habit.frequency == HabitFrequency.EVERYDAY:
+            expected = days
+        else:
+            expected = 0
+            for day_offset in range(days):
+                checking_date = date.today() - timedelta(days=day_offset)
+                if checking_date.weekday() == habit.weekday:
+                    expected += 1
+        if expected == 0:
+            return 0.0
+        return (completed_habits / expected) * 100
 
