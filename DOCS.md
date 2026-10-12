@@ -103,8 +103,28 @@ habit_tracker/
 | `name` | `str` | read/write через property | Не может быть пустым или из пробелов; пробелы по краям обрезаются |
 | `description` | `str` | read/write через property | Пробелы по краям обрезаются |
 | `frequency` | `HabitFrequency` | read/write через property | Должен быть валидным `HabitFrequency` (проверка `isinstance`) |
+| `weekday` | `int \| None` | read-only property | `None` для `EVERYDAY`; обязателен и в диапазоне `0-6` для `EVERYWEEK` (0 = понедельник, как `date.weekday()`) |
 | `status` | `HabitStatus` | read-only property | Меняется только через `archive()` / `activate()` |
 | `created_at` | `date` | read-only property | Выставляется автоматически при создании, неизменяем |
+
+### Согласованность `frequency` и `weekday`
+
+Проверяется в `check_weekday_consistency`, вызывается в `__init__` **после** проверки
+типа `frequency` (чтобы ошибка типа не маскировалась сообщением про `weekday`):
+
+```python
+Habit("X", "", HabitFrequency.EVERYDAY, weekday=2)
+# ValueError: EVERYDAY не может иметь weekday
+
+Habit("X", "", HabitFrequency.EVERYWEEK)
+# ValueError: EVERYWEEK требует weekday
+
+Habit("X", "", HabitFrequency.EVERYWEEK, weekday=10)
+# IndexError: weekday должен быть 0-6
+```
+
+`weekday` — read-only (setter не нужен, иначе пришлось бы повторять ту же
+проверку согласованности и там).
 
 ### Методы
 
@@ -219,13 +239,17 @@ longest_streak = 3  (28-29-30, серия 25-26 короче)
 
 Ожидаемое количество выполнений зависит от `frequency`:
 - `EVERYDAY` → ожидается `days` выполнений
-- `EVERYWEEK` → ожидается `days / 7` выполнений
+- `EVERYWEEK` → точный подсчёт: сколько раз конкретный `habit.weekday` фактически
+  попадает в последние `days` дней (проход по каждому дню периода, сравнение
+  `.weekday()` с `habit.weekday`) — не грубая оценка `days / 7`
 
 ```
-habit (EVERYWEEK), 1 отметка за последние 30 дней
-ожидаемое = 30 / 7 ≈ 4.29
-completion_rate = 1 / 4.29 × 100 ≈ 23.3%
+habit (EVERYWEEK, weekday=сегодняшний день недели), 1 отметка сегодня, days=7
+expected = 1  (этот день недели встречается в последних 7 днях 1 раз)
+completion_rate = 1 / 1 × 100 = 100%
 ```
+
+Защита от деления на ноль: если `expected == 0`, возвращается `0.0` без ошибки.
 
 Результат не ограничен сверху — если отметок больше, чем ожидалось,
 процент может превышать 100%, показывается как есть.
@@ -306,9 +330,11 @@ tests/
 
 Запуск: `uv run pytest -v`
 
-Покрыто:
+Покрыто (17 тестов):
 - Валидация `Habit` (пустое имя, в т.ч. параметризованно — пустая строка и строка из пробелов)
 - Создание с валидными данными, `archive()`
+- `weekday`: `EVERYWEEK` без `weekday` → `ValueError`, `EVERYDAY` с `weekday` → `ValueError`,
+  `weekday` вне диапазона 0-6 → `IndexError`, корректный `EVERYWEEK` с `weekday` → создаётся
 - `HabitLogRepository`: добавление, дубликаты (`DuplicateLogError`), `get_current_streak`
   (включая серию без логов и серию из нескольких дней подряд), `get_longest_streak`
   (включая пустую историю, один лог и серию с разрывом — проверяет ту самую ловушку
@@ -333,6 +359,8 @@ tests/
 - [x] Статистика выполнения за последние 30 дней
 - [x] Консольный интерфейс (добавить, отметить, статистика, статус)
   - [x] Красивое оформление вывода (rich: Console, Panel, Table)
-- [x] Тесты (pytest) — 14 тестов, Habit / HabitLogRepository / User
+- [x] Тесты (pytest) — 17 тестов, Habit / HabitLogRepository / User
+- [x] `weekday` для `EVERYWEEK`-привычек + точный расчёт completion rate
 - [ ] База данных (PostgreSQL, SQLAlchemy, Alembic)
 - [ ] REST API (FastAPI, авторизация, слоистая архитектура)
+- [ ] Фронтенд (после готового API)
