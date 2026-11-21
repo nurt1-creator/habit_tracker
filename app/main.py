@@ -1,14 +1,19 @@
 from datetime import date
-from app.models import Habit, HabitLog
-from app.repository import HabitLogRepository
 from app.enums import HabitFrequency, HabitStatus
-from app.user import User
-from app.exceptions import DuplicateHabitError, DuplicateLogError, HabitArchivedError
+from app.db_models import HabitRecord
+from app.database import engine
+from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 
 if __name__ == "__main__":
-    today_weekday = date.today().weekday()
-    habit = Habit("Test", "desc", HabitFrequency.EVERYWEEK, weekday=today_weekday)
-    repo = HabitLogRepository()
-    repo.add(HabitLog(habit, date.today()))
-    print(repo.get_completion_rate(habit, days=7))  # ожидаем 100.0
+    record = HabitRecord(name="Habit", description="habit", created_at=(date.today()), weekday=None, status=HabitStatus.ACTIVE, frequency=HabitFrequency.EVERYDAY)
+    # with Session(engine) as session:
+    #     session.add(record)
+    #     session.commit()
+
+    with Session(engine) as session:
+        stmt = select(HabitRecord).where(HabitRecord.name == "Habit")
+        records = session.scalars(stmt).all()
+        for record in records:
+            print(record.id, record.name, record.status)
